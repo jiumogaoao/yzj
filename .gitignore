@@ -39,6 +39,7 @@ android/.gradle/
 android/app/build/
 android/yzj.iml
 android/app/app.iml
+android/.idea/
 ios/
 
 # Typescript v1 declaration files
