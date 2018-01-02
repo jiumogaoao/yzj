@@ -41,6 +41,7 @@ android/yzj.iml
 android/app/app.iml
 android/.idea/
 ios/
+.idea/
 
 # Typescript v1 declaration files
 typings/
