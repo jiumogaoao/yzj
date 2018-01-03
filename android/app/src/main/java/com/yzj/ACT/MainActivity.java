@@ -1,4 +1,4 @@
-package com.yzj;
+package com.yzj.ACT;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -56,8 +56,8 @@ public class MainActivity extends ReactActivity {
             intent.putExtra("scanning", "Scanning");
             intent.putExtra("scan_for_devices", "Search");
             intent.putExtra("select_device", "Select");
-            intent.putExtra("layout_list", R.layout.device_layout_list);
-            intent.putExtra("layout_text", R.layout.device_layout_text);
+            intent.putExtra("layout_list", com.yzj.R.layout.device_layout_list);
+            intent.putExtra("layout_text", com.yzj.R.layout.device_layout_text);
             startActivityForResult(intent, BluetoothState.REQUEST_CONNECT_DEVICE);
         }
     }

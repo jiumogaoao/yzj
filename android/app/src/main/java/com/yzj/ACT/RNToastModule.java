@@ -1,4 +1,4 @@
-package com.yzj;
+package com.yzj.ACT;
 
 import android.widget.Toast;
 
@@ -15,6 +15,7 @@ import android.content.Intent;
 
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.JSApplicationIllegalArgumentException;
+import com.yzj.ACT.MainActivity;
 
 public class RNToastModule extends ReactContextBaseJavaModule {
 

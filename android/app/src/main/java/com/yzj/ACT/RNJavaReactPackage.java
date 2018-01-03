@@ -1,4 +1,4 @@
-package com.yzj;
+package com.yzj.ACT;
 
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.JavaScriptModule;
