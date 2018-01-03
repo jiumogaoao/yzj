@@ -81,8 +81,11 @@ public class MainActivity extends ReactActivity {
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
 
         if(requestCode == BluetoothState.REQUEST_CONNECT_DEVICE) {
-            if(resultCode == Activity.RESULT_OK)
+            updateToRN.invoke("REQUEST_CONNECT_DEVICE");
+            if(resultCode == Activity.RESULT_OK){
+                updateToRN.invoke("RESULT_OK");
                 bt.connect(data);
+            }
         } else if(requestCode == BluetoothState.REQUEST_ENABLE_BT) {
             if(resultCode == Activity.RESULT_OK) {
                 bt.setupService();
@@ -102,4 +105,6 @@ public class MainActivity extends ReactActivity {
     public void send(String message){
         bt.send(message, true);
     }
+
+
 }
