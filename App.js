@@ -6,7 +6,7 @@
 
 import React, { Component } from 'react';
 import { AppRegistry,
-    Dimensions ,AsyncStorage} from 'react-native';
+    Dimensions ,AsyncStorage,NativeModules} from 'react-native';
 import { StackNavigator } from "react-navigation";
 import Index from './view/Index';
 import Register from './view/Register';
@@ -35,7 +35,9 @@ global.storageSet = async function(key,obj){
 var navoption={
     header:null
 }
-
+NativeModules.RNToastAndroid.update(function(data){
+    console.log(data)
+})
 const yzj = StackNavigator({
     Index: { screen: Index,navigationOptions:navoption},
     Register: { screen: Register,navigationOptions:navoption},

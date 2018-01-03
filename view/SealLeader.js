@@ -12,9 +12,6 @@ import {
 class SealLeader extends React.Component {
     constructor(props) {
         super(props);
-        NativeModules.RNToastAndroid.update(function(data){
-            console.log(data)
-        })
     };
 
     goDevice(){

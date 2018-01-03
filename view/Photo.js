@@ -7,14 +7,14 @@ import {
     TouchableOpacity,
   Vibration,
   Animated,
-  Easing
+  Easing,
+NativeModules
 } from 'react-native';
 
 import Camera from 'react-native-camera';
 import HeadC from '../modules/HeadC'
 import CameraSVG from '../svg/CameraSVG'
-import TabC from "../modules/TabC";
-
+import RNFS from 'react-native-fs';
 class Photo extends React.Component {
 
    constructor(props) {
@@ -26,11 +26,46 @@ class Photo extends React.Component {
 
     }
 
-    takePicture() {
+    async takePicture() {
         const options = {};
-        this.camera.capture({metadata: options})
-            .then((data) => console.log(data))
-            .catch(err => console.error(err));
+        let picData=await this.camera.capture({metadata: options})
+        let b64=await RNFS.readFile(picData.mediaUri,'base64')
+        await storageSet('readyFile', {
+            file:'data:image/jpg;base64,'+b64,
+            fileType:'jpg'
+        });
+        let device = await storageGet('device');
+        let user = await storageGet('user');
+        let leader = await storageGet('leader');
+        let seal = await storageGet('seal');
+        let machine = await storageGet('machine');
+        let rp = await fetch('/mechseal/task/simpleSealUseApplyTaskAction_applyTask.action', {
+            method: 'POST',
+            headers: device,
+            body: JSON.stringify({ //参数
+                file:'data:image/jpg;base64,'+b64,
+                fileType:'jpg',
+                applyType:user.applyType,
+                bizInfo:{
+                    applyPeopleCode:user.applyPeopleCode,
+                    applyPeopleName:user.applyPeopleName,
+                    applyOrgNo:user.applyOrgNo,
+                    applyOrgName:user.applyOrgName,
+                    operatorOrgNo:leader.operatorOrgNo,
+                    sealTypeId:seal.sealTypeId,
+                    sealNo:seal.sealNo,
+                    applyTime:'',
+                    apprPeopleCode:leader.apprPeopleCode,
+                    apprPeopleName:leader.apprPeopleName,
+                    status:'001',
+                    memo:'',
+                    machineNum:machine.machineNum
+                }
+            })
+        })
+        console.log(rp)
+        NativeModules.RNToastAndroid.show('审批已上传',0)
+        this.props.navigation.goBack()
     }
 
    render() {
@@ -57,7 +92,7 @@ class Photo extends React.Component {
               </View>
                 <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.5)',width:'100%',alignItems:'center',justifyContent:'space-between'}}>
                     <Text style={{color:'#fff',marginTop:parseInt(15*w)}}>请将印章就绪置于拍摄区域</Text>
-                    <TouchableOpacity>
+                    <TouchableOpacity onPress={this.takePicture.bind(this)}>
                         <View style={{backgroundColor:"#fff",width:parseInt(49*w),height:parseInt(49*w),borderRadius:parseInt(24*w),justifyContent:'center',alignItems:'center',marginBottom:parseInt(20*w)}}><CameraSVG s={0.1} color={"#0099fd"}/></View>
                     </TouchableOpacity>
 

@@ -10,6 +10,7 @@ import {
 import LogoSVG from '../svg/LogoSVG';
 import HostSVG from '../svg/HostSVG';
 import PasswordSVG from '../svg/PasswordSVG';
+import DeviceInfo from 'react-native-device-info'
 class Index extends React.Component {
     initData(){
         storageSet('user', {
@@ -43,7 +44,18 @@ class Index extends React.Component {
         });
         storageSet('machine', {
             machineNum:'001'
-        })
+        });
+        storageSet('device',{
+            PLATFORM_TYPE:'Android',
+
+            TERMINAL_TYPE:DeviceInfo.getModel(),
+
+            TERMINAL_SERIALNO:DeviceInfo.getUniqueID(),
+
+            TERMINAL_OS_VERSION:DeviceInfo.getSystemVersion(),
+
+            APP_VERSION:DeviceInfo.getVersion()
+        });
     }
     constructor(props) {
         super(props);
