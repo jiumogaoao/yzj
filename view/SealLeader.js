@@ -15,11 +15,7 @@ class SealLeader extends React.Component {
     };
 
     goDevice(){
-        var rnToastAndroid = NativeModules.RNToastAndroid;
-        rnToastAndroid.searchDevice(function(data){
-        }.bind(this),function(data){
-            console.log(data)
-        } );
+
     }
 
     goCheckList(){

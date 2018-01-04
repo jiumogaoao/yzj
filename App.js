@@ -38,6 +38,7 @@ var navoption={
 NativeModules.RNToastAndroid.update(function(data){
     console.log(data)
 })
+NativeModules.RNToastAndroid.init();
 const yzj = StackNavigator({
     Index: { screen: Index,navigationOptions:navoption},
     Register: { screen: Register,navigationOptions:navoption},
