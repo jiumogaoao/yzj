@@ -1,5 +1,6 @@
 package com.yzj;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -19,19 +20,28 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.Window;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bluetooth.BluetoothCtrl;
+import com.bluetooth.BluetoothSppClient;
 import com.facebook.react.ReactActivity;
 import com.facebook.react.bridge.Callback;
+import com.storage.CJsonStorage;
 import com.storage.CKVStorage;
 import com.storage.CSharedPreferences;
 
 import java.util.ArrayList;
 import java.util.Hashtable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends ReactActivity {
     Callback updateToRN;
@@ -77,6 +87,48 @@ public class MainActivity extends ReactActivity {
     private ArrayList<String> mslUuidList = new ArrayList<String>();
     /**保存蓝牙进入前的开启状态*/
     private boolean mbBleStatusBefore = false;
+
+    /*************************************/
+    /**Control: the Send button*/
+    private ImageButton mibtnSend = null;
+    /**Controls: input box*/
+    private AutoCompleteTextView mactvInput = null;
+    /**Controls: data receive area*/
+    private TextView mtvReceive = null;
+    /**Control: Scroll screen control*/
+    private ScrollView msvCtl = null;
+    /**对象:引用全局的蓝牙连接对象*/
+    protected BluetoothSppClient mBSC = null;
+    /**对象:引用全局的动态存储对象*/
+    protected CKVStorage mDS = null;
+    /**控件:发送数据量*/
+    private TextView mtvTxdCount = null;
+    /**控件:接收数据量*/
+    private TextView mtvRxdCount = null;
+    /**控件:连接保持时间*/
+    private TextView mtvHoleRun = null;
+    /**常量:历史发送命令字符保存关键字*/
+    protected static final String KEY_HISTORY = "send_history";
+    /**常量:历史发送命令字符串分隔符(将命令历史保存到字符串中，使用这个分隔符进行数组切割)*/
+    protected static final String HISTORY_SPLIT = "&#&";
+    /**输入自动完成列表*/
+    protected ArrayList<String> malCmdHistory = new ArrayList<String>();
+    /**常量:动态存储存储对象的Key; subkey:input_mode/output_mode*/
+    protected final static String KEY_IO_MODE = "key_io_mode";
+    /** 输入模式 */
+    protected byte mbtInputMode = BluetoothSppClient.IO_MODE_STRING;
+    /** 输出模式 */
+    protected byte mbtOutputMode = BluetoothSppClient.IO_MODE_STRING;
+    /**线程终止标志(用于终止监听线程)*/
+    protected boolean mbThreadStop = false;
+    /**未设限制的AsyncTask线程池(重要)*/
+    protected static ExecutorService FULL_TASK_EXECUTOR;
+    static{
+        FULL_TASK_EXECUTOR = (ExecutorService) Executors.newCachedThreadPool();
+    };
+    /***********************************/
+
+
 
     /**广播监听:获取UUID服务*/
     private BroadcastReceiver _mGetUuidServiceReceiver = new BroadcastReceiver(){
@@ -164,6 +216,7 @@ public class MainActivity extends ReactActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        //this.requestWindowFeature(Window.FEATURE_NO_TITLE);
     }
     public void create(){
         if (null == mBT){ //系统中不存在蓝牙模块
@@ -217,7 +270,7 @@ public class MainActivity extends ReactActivity {
     /**
      * 进入搜索蓝牙设备列表页面
      * */
-    private void openDiscovery(){
+    public void openDiscovery(){
         //进入蓝牙设备搜索界面
         Intent intent = new Intent(this, actDiscovery.class);
         this.startActivityForResult(intent, REQUEST_DISCOVERY); //等待返回搜索结果
@@ -266,7 +319,7 @@ public class MainActivity extends ReactActivity {
     public void onActivityResult(int requestCode, int resultCode, Intent data){
         if (requestCode == REQUEST_DISCOVERY){
             if (Activity.RESULT_OK == resultCode){
-                this.mllDeviceCtrl.setVisibility(View.VISIBLE); //显示设备信息区
+                //this.mllDeviceCtrl.setVisibility(View.VISIBLE); //显示设备信息区
 
                 this.mhtDeviceInfo.put("NAME", data.getStringExtra("NAME"));
                 this.mhtDeviceInfo.put("MAC", data.getStringExtra("MAC"));
@@ -275,24 +328,27 @@ public class MainActivity extends ReactActivity {
                 this.mhtDeviceInfo.put("DEVICE_TYPE", data.getStringExtra("DEVICE_TYPE"));
                 this.mhtDeviceInfo.put("BOND", data.getStringExtra("BOND"));
 
-                this.showDeviceInfo();//显示设备信息
+                //this.showDeviceInfo();//显示设备信息//
 
                 //如果设备未配对，显示配对操作
                 if (this.mhtDeviceInfo.get("BOND").equals(getString(R.string.actDiscovery_bond_nothing))){
-                    this.mbtnPair.setVisibility(View.VISIBLE); //显示配对按钮
-                    this.mbtnComm.setVisibility(View.GONE); //隐藏通信按钮
+                    //this.mbtnPair.setVisibility(View.VISIBLE); //显示配对按钮
+                    //this.mbtnComm.setVisibility(View.GONE); //隐藏通信按钮
                     //提示要显示Service UUID先建立配对
-                    this.mtvServiceUUID.setText(getString(R.string.actMain_tv_hint_service_uuid_not_bond));
+                    //this.mtvServiceUUID.setText(getString(R.string.actMain_tv_hint_service_uuid_not_bond));
+                    this.onClickBtnPair();
                 }else{
                     //已存在配对关系，建立与远程设备的连接
                     this.mBDevice = this.mBT.getRemoteDevice(this.mhtDeviceInfo.get("MAC"));
-                    this.showServiceUUIDs();//显示设备的Service UUID列表
-                    this.mbtnPair.setVisibility(View.GONE); //隐藏配对按钮
-                    this.mbtnComm.setVisibility(View.VISIBLE); //显示通信按钮
+                    //this.showServiceUUIDs();//显示设备的Service UUID列表
+                    //this.mbtnPair.setVisibility(View.GONE); //隐藏配对按钮
+                    //this.mbtnComm.setVisibility(View.VISIBLE); //显示通信按钮
+                    this.onClickBtnConn();
+
                 }
             }else if (Activity.RESULT_CANCELED == resultCode){
                 //未操作，结束程序
-                this.finish();
+                //this.finish();
             }
         }
         else if (REQUEST_BYTE_STREAM == requestCode || REQUEST_CMD_LINE == requestCode ||
@@ -313,9 +369,9 @@ public class MainActivity extends ReactActivity {
      * 配对按钮的单击事件
      * @return void
      * */
-    public void onClickBtnPair(View v){
+    public void onClickBtnPair(){
         new PairTask().execute(this.mhtDeviceInfo.get("MAC"));
-        this.mbtnPair.setEnabled(false); //冻结配对按钮
+        //this.mbtnPair.setEnabled(false); //冻结配对按钮
     }
 
     /**
@@ -323,7 +379,7 @@ public class MainActivity extends ReactActivity {
      * 建立成功后出现通信模式的选择按钮
      * @return void
      * */
-    public void onClickBtnConn(View v){
+    public void onClickBtnConn(){
         new connSocketTask().execute(this.mBDevice.getAddress());
     }
 
@@ -331,10 +387,11 @@ public class MainActivity extends ReactActivity {
      * 通信模式选择-串行流模式
      * @return void
      * */
-    public void onClickBtnSerialStreamMode(View v){
+    public void onClickBtnSerialStreamMode(){
         //进入串行流模式
-        Intent intent = new Intent(this, actByteStream.class);
-        this.startActivityForResult(intent, REQUEST_BYTE_STREAM); //等待返回搜索结果
+        //Intent intent = new Intent(this, actByteStream.class);
+        //this.startActivityForResult(intent, REQUEST_BYTE_STREAM); //等待返回搜索结果
+        this.toConn();
     }
 
     /**
@@ -429,7 +486,7 @@ public class MainActivity extends ReactActivity {
                 builder.create().show();
             }
             else if (RET_BULETOOTH_IS_START == result){	//蓝牙启动成功
-                openDiscovery(); //进入搜索页面
+                //openDiscovery(); //进入搜索页面
             }
         }
     }
@@ -491,13 +548,14 @@ public class MainActivity extends ReactActivity {
                 Toast.makeText(MainActivity.this,
                         getString(R.string.actMain_msg_bluetooth_Bond_Success),
                         Toast.LENGTH_SHORT).show();
-                mbtnPair.setVisibility(View.GONE); //隐藏配对按钮
-                mbtnComm.setVisibility(View.VISIBLE); //显示通信按钮
+                //mbtnPair.setVisibility(View.GONE); //隐藏配对按钮
+                //mbtnComm.setVisibility(View.VISIBLE); //显示通信按钮
                 mhtDeviceInfo.put("BOND", getString(R.string.actDiscovery_bond_bonded));//显示已绑定
-                showDeviceInfo();//刷新配置信息
-                showServiceUUIDs();//显示远程设备提供的服务
+                //showDeviceInfo();//刷新配置信息
+                //showServiceUUIDs();//显示远程设备提供的服务
+                MainActivity.this.onClickBtnConn();
             }else{	//在指定时间内未完成配对
-                Toast.makeText(MainActivity.this,
+               Toast.makeText(MainActivity.this,
                         getString(R.string.actMain_msg_bluetooth_Bond_fail),
                         Toast.LENGTH_LONG).show();
                 try{
@@ -608,11 +666,12 @@ public class MainActivity extends ReactActivity {
             this.mpd.dismiss();
 
             if (CONN_SUCCESS == result){	//通信连接建立成功
-                mbtnComm.setVisibility(View.GONE); //隐藏 建立通信按钮
-                mllChooseMode.setVisibility(View.VISIBLE); //显示通信模式控制面板
+                //mbtnComm.setVisibility(View.GONE); //隐藏 建立通信按钮
+                //mllChooseMode.setVisibility(View.VISIBLE); //显示通信模式控制面板
                 Toast.makeText(MainActivity.this,
                         getString(R.string.actMain_msg_device_connect_succes),
                         Toast.LENGTH_SHORT).show();
+                MainActivity.this.onClickBtnSerialStreamMode();
             }else{	//通信连接建立失败
                 Toast.makeText(MainActivity.this,
                         getString(R.string.actMain_msg_device_connect_fail),
@@ -631,5 +690,168 @@ public class MainActivity extends ReactActivity {
 
     public void setUpdate(Callback cb){
         updateToRN = cb;
+    }
+
+    public void toConn(){
+        this.mBSC = ((MainApplication)this.getApplicationContext()).mBSC;
+        this.mDS =  ((MainApplication)this.getApplicationContext()).mDS;
+
+        if (null == this.mBSC || !this.mBSC.isConnect()){	//当进入时，发现连接已丢失，则直接返回主界面
+            Toast.makeText(this, "no mBSC",Toast.LENGTH_SHORT).show();
+            return;
+        }
+        this.initCtl(); //Initialize controls
+        //Loading the contents of the input box automatically
+        this.loadAutoComplateCmdHistory(this.getLocalClassName(), this.mactvInput);
+        this.initIO_Mode(); //初始化输入输出模式
+        new receiveTask()
+                .executeOnExecutor(FULL_TASK_EXECUTOR);
+    }
+    private void initCtl(){
+        this.refreshRxdCount();
+        this.refreshTxdCount();
+    }
+    /**
+     * 刷新数据统计状态条-接收统计值
+     * @return void
+     * @see 必须使用 usedDataCount()以后才能使用这个函数
+     * */
+    @SuppressLint("StringFormatMatches")
+    protected void refreshRxdCount(){
+        long lTmp = 0;
+        if (null != this.mtvRxdCount)
+        {
+            lTmp = this.mBSC.getRxd();
+            this.mtvRxdCount.setText(String.format(getString(R.string.templet_rxd, lTmp)));
+            lTmp = this.mBSC.getConnectHoldTime();
+            this.mtvHoleRun.setText(String.format(getString(R.string.templet_hold_time, lTmp)));
+        }
+    }
+    /**
+     * 刷新数据统计状态条-发送统计值<br/>
+     *  备注：同时会刷新运行时间显示值
+     * @return void
+     * @see 必须使用 usedDataCount()以后才能使用这个函数
+     * */
+    @SuppressLint("StringFormatMatches")
+    protected void refreshTxdCount(){
+        long lTmp = 0;
+        if (null != this.mtvTxdCount)
+        {
+            lTmp = this.mBSC.getTxd();
+            this.mtvTxdCount.setText(String.format(getString(R.string.templet_txd, lTmp)));
+            lTmp = this.mBSC.getConnectHoldTime();
+            this.mtvHoleRun.setText(String.format(getString(R.string.templet_hold_time, lTmp)));
+        }
+    }
+
+    /**
+     * 取出用于自动完成控件的命令历史字
+     * @param String sClass 所属的类一般为this.getLocalClassName()
+     * @param AutoCompleteTextView v 自动完成控件的引用
+     * @return void
+     * */
+    protected void loadAutoComplateCmdHistory(String sClass, AutoCompleteTextView v){
+        CKVStorage kvAutoComplate = new CJsonStorage(this, getString(R.string.app_name), "AutoComplateList");
+        String sTmp = kvAutoComplate.getStringVal(KEY_HISTORY, sClass);
+        kvAutoComplate = null;
+        if(!sTmp.equals("")){	//保存输入提示历史
+            String[] sT = sTmp.split(HISTORY_SPLIT);
+            for (int i=0;i<sT.length; i++)
+                this.malCmdHistory.add(sT[i]);
+            v.setAdapter(
+                    new ArrayAdapter<String>(this,
+                            android.R.layout.simple_dropdown_item_1line,sT)
+            );
+        }
+    }
+    /**
+     * 初始化输入输出模式
+     * @return void
+     * */
+    protected void initIO_Mode(){
+        this.mbtInputMode = (byte)this.mDS.getIntVal(KEY_IO_MODE, "input_mode");
+        if (this.mbtInputMode == 0)
+            this.mbtInputMode = BluetoothSppClient.IO_MODE_STRING;
+
+        this.mbtOutputMode = (byte)this.mDS.getIntVal(KEY_IO_MODE, "output_mode");
+        if (this.mbtOutputMode == 0)
+            this.mbtOutputMode = BluetoothSppClient.IO_MODE_STRING;
+        mBSC.setRxdMode(mbtInputMode);
+        mBSC.setTxdMode(mbtOutputMode);
+    }
+    //----------------
+    /*多线程处理(建立蓝牙设备的串行通信连接)*/
+    private class receiveTask extends AsyncTask<String, String, Integer>
+    {
+        /**Constant: the connection is lost*/
+        private final static byte CONNECT_LOST = 0x01;
+        /**Constant: the end of the thread task*/
+        private final static byte THREAD_END = 0x02;
+        /**
+         * 线程启动初始化操作
+         */
+        @Override
+        public void onPreExecute()
+        {
+            mtvReceive.setText(getString(R.string.msg_receive_data_wating));
+            mbThreadStop = false;
+        }
+
+        /**
+         * 线程异步处理
+         */
+        @Override
+        protected Integer doInBackground(String... arg0){
+            mBSC.Receive(); //首次启动调用一次以启动接收线程
+            while(!mbThreadStop){
+                if (!mBSC.isConnect())//检查连接是否丢失
+                    return (int)CONNECT_LOST;
+
+                if (mBSC.getReceiveBufLen() > 0){
+                    SystemClock.sleep(20); //先延迟让缓冲区填满
+                    this.publishProgress(mBSC.Receive());
+                }
+            }
+            return (int)THREAD_END;
+        }
+
+        /**
+         * 线程内更新处理
+         */
+        @Override
+        public void onProgressUpdate(String... progress){
+            if (null != progress[0]){
+                mtvReceive.append(progress[0]); //显示区中追加数据
+                refreshRxdCount(); //刷新接收数据统计值
+            }
+        }
+
+        /**
+         * 阻塞任务执行完后的清理工作
+         */
+        @Override
+        public void onPostExecute(Integer result){
+            if (CONNECT_LOST == result) //connection is lost
+                mtvReceive.append(getString(R.string.msg_msg_bt_connect_lost));
+            else
+                mtvReceive.append(getString(R.string.msg_receive_data_stop));//Tip receive termination
+            mibtnSend.setEnabled(false); //Disable the Send button
+            refreshHoldTime(); //刷新数据统计状态条-运行时间
+        }
+    }
+    /**
+     * 刷新数据统计状态条-运行时间<br/>
+     *  备注：同时会刷新运行时间显示值
+     * @return void
+     * @see 必须使用 usedDataCount()以后才能使用这个函数
+     * */
+    @SuppressLint("StringFormatMatches")
+    protected void refreshHoldTime(){
+        if (null != this.mtvHoleRun)
+        {
+            long lTmp = this.mBSC.getConnectHoldTime();
+            this.mtvHoleRun.setText(String.format(getString(R.string.templet_hold_time, lTmp)));
+        }
     }
 }

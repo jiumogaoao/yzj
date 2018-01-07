@@ -14,7 +14,7 @@ class Seal extends React.Component {
         super(props);
     };
     goDevice(){
-
+        NativeModules.RNToastAndroid.openDiscovery()
     }
     goPhoto (){
         this.props.navigation.navigate('Photo')

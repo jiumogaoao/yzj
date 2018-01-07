@@ -115,10 +115,19 @@ android {
             include "armeabi-v7a", "x86"
         }
     }
+    signingConfigs {
+        releaseConfig {
+            keyPassword '861104tmd'
+            storeFile file('jiu.jks')
+            keyAlias 'key0'
+            storePassword '861104tmd'
+        }
+    }
     buildTypes {
         release {
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            signingConfig signingConfigs.releaseConfig
         }
     }
     // applicationVariants are e.g. debug, release

@@ -61,6 +61,11 @@ public class RNToastModule extends ReactContextBaseJavaModule {
             }
         }
     @ReactMethod
+    public void openDiscovery(){
+        MainActivity m = (MainActivity) getCurrentActivity();
+        m.openDiscovery();
+    }
+    @ReactMethod
     public void update(Callback toUpdate){
         MainActivity m = (MainActivity) getCurrentActivity();
         m.setUpdate(toUpdate);

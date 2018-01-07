@@ -40,21 +40,21 @@ public class actByteStream extends BaseCommActivity{
 	@Override
 	protected void onCreate(Bundle savedInstanceState){
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.act_byte_stream);
+		//setContentView(R.layout.act_byte_stream);
 		
 		/*Control reference*/
-		this.mibtnSend = (ImageButton)this.findViewById(R.id.actByteStream_btn_send);
-		this.mactvInput = (AutoCompleteTextView)this.findViewById(R.id.actByteStream_actv_input);
-		this.mtvReceive = (TextView)this.findViewById(R.id.actByteStream_tv_receive);
-		this.msvCtl = (ScrollView)this.findViewById(R.id.actByteStream_sv_Scroll);
+		//this.mibtnSend = (ImageButton)this.findViewById(R.id.actByteStream_btn_send);
+		//this.mactvInput = (AutoCompleteTextView)this.findViewById(R.id.actByteStream_actv_input);
+		//this.mtvReceive = (TextView)this.findViewById(R.id.actByteStream_tv_receive);
+		//this.msvCtl = (ScrollView)this.findViewById(R.id.actByteStream_sv_Scroll);
 		
 		this.initCtl(); //Initialize controls
 		//Loading the contents of the input box automatically
 		this.loadAutoComplateCmdHistory(this.getLocalClassName(), this.mactvInput);
 		
-		this.enabledBack(); //激活回退按钮
+		//this.enabledBack(); //激活回退按钮
 		this.initIO_Mode(); //初始化输入输出模式
-		this.usedDataCount(); //启用数据统计状态条
+		//this.usedDataCount(); //启用数据统计状态条
 		
 		//Start receiving thread
 		new receiveTask()
@@ -141,12 +141,12 @@ public class actByteStream extends BaseCommActivity{
 	 * @return void
 	 * */
 	private void initCtl(){
-		this.mibtnSend.setEnabled(false);
+		//this.mibtnSend.setEnabled(false);
 		this.refreshRxdCount();
 		this.refreshTxdCount();
 		
 		/*监听：输入框没有内容时，发送按钮不可用*/
-		this.mactvInput.addTextChangedListener(new TextWatcher(){
+		/*this.mactvInput.addTextChangedListener(new TextWatcher(){
 			@Override
 			public void afterTextChanged(Editable arg0){
 				if (arg0.length() > 0)
@@ -163,7 +163,7 @@ public class actByteStream extends BaseCommActivity{
 			public void onTextChanged(CharSequence arg0, int arg1, int arg2, int arg3){
 			}
 			
-		});
+		});*/
 	}
 	
     /**
