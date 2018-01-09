@@ -32,12 +32,18 @@ global.storageSet = async function(key,obj){
     await AsyncStorage.setItem(key,obj)
     return storageGet(key)
 }
+global.updateFn={}
 var navoption={
     header:null
 }
-NativeModules.RNToastAndroid.update(function(data){
-    console.log(data)
-})
+function updateCallback(data){
+    NativeModules.RNToastAndroid.update(updateCallback)
+    data=JSON.parse(data)
+    if(updateFn[data.type]){
+        updateFn[data.type](data.data)
+    }
+}
+NativeModules.RNToastAndroid.update(updateCallback)
 NativeModules.RNToastAndroid.init();
 const yzj = StackNavigator({
     Index: { screen: Index,navigationOptions:navoption},

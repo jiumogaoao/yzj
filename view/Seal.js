@@ -8,16 +8,20 @@ import {
     TextInput,
     NativeModules
 } from 'react-native';
-
+let rnToastAndroid = NativeModules.RNToastAndroid;
 class Seal extends React.Component {
     constructor(props) {
         super(props);
+        updateFn.deviceReceive=function(data){
+            console.log(data)
+        }
     };
     goDevice(){
-        NativeModules.RNToastAndroid.openDiscovery()
+        this.props.navigation.navigate('DeviceControl');
     }
     goPhoto (){
-        this.props.navigation.navigate('Photo')
+        //this.props.navigation.navigate('Photo')
+        rnToastAndroid.send('yzj')
     }
     render() {
         return (

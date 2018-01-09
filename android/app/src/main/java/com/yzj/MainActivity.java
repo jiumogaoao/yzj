@@ -26,7 +26,9 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.ScrollView;
+import android.widget.SimpleAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,14 +36,20 @@ import com.bluetooth.BluetoothCtrl;
 import com.bluetooth.BluetoothSppClient;
 import com.facebook.react.ReactActivity;
 import com.facebook.react.bridge.Callback;
+import com.google.gson.Gson;
 import com.storage.CJsonStorage;
 import com.storage.CKVStorage;
 import com.storage.CSharedPreferences;
+import com.util.CHexConver;
+
 
 import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
 
 public class MainActivity extends ReactActivity {
     Callback updateToRN;
@@ -87,7 +95,35 @@ public class MainActivity extends ReactActivity {
     private ArrayList<String> mslUuidList = new ArrayList<String>();
     /**保存蓝牙进入前的开启状态*/
     private boolean mbBleStatusBefore = false;
+    /*************************************/
+    /**CONST: scan device menu id*/
+    public static final int MEMU_SCAN = 1;
+    /**CONST: quit system*/
+    public static final int MEMU_QUIT = 2;
+    /**CONST: device type bltetooth 2.1*/
+    public static final int DEVICE_TYPE_BREDR = 0x01;
+    /**CONST: device type bltetooth 4.0 ble*/
+    public static final int DEVICE_TYPE_BLE = 0x02;
+    /**CONST: device type bltetooth double mode*/
+    public static final int DEVICE_TYPE_DUMO = 0x03;
 
+    public final static String EXTRA_DEVICE_TYPE = "android.bluetooth.device.extra.DEVICE_TYPE";
+
+    /** Discovery is Finished */
+    private boolean _discoveryFinished;
+
+    /**bluetooth List View*/
+    private ListView mlvList = null;
+    /**
+     * Storage the found bluetooth devices
+     * format:<MAC, <Key,Val>>;Key=[RSSI/NAME/COD(class od device)/BOND/UUID]
+     * */
+    private Hashtable<String, Hashtable<String, String>> mhtFDS = null;
+
+    /**ListView的动态数组对象(存储用于显示的列表数组)*/
+    private ArrayList<HashMap<String, Object>> malListItem = null;
+    /**SimpleAdapter对象(列表显示容器对象)*/
+    private SimpleAdapter msaListItemAdapter = null;
     /*************************************/
     /**Control: the Send button*/
     private ImageButton mibtnSend = null;
@@ -123,6 +159,7 @@ public class MainActivity extends ReactActivity {
     protected boolean mbThreadStop = false;
     /**未设限制的AsyncTask线程池(重要)*/
     protected static ExecutorService FULL_TASK_EXECUTOR;
+    Gson gson = new Gson();
     static{
         FULL_TASK_EXECUTOR = (ExecutorService) Executors.newCachedThreadPool();
     };
@@ -173,7 +210,7 @@ public class MainActivity extends ReactActivity {
     /**
      * add top menu
      * */
-    @Override
+    /*@Override
     public boolean onCreateOptionsMenu(Menu menu){
         super.onCreateOptionsMenu(menu);
         //扫描设备
@@ -186,12 +223,12 @@ public class MainActivity extends ReactActivity {
         MenuItem miExit = menu.add(0, MEMU_EXIT, 2, getString(R.string.menu_close));
         miExit.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
         return super.onCreateOptionsMenu(menu);
-    }
+    }*/
 
     /**
      * 菜单点击后的执行指令
      * */
-    @Override
+    /*@Override
     public boolean onMenuItemSelected(int featureId, MenuItem item) {
         switch(item.getItemId()) {
             case MEMU_RESCAN: //开始扫描
@@ -208,7 +245,7 @@ public class MainActivity extends ReactActivity {
             default:
                 return super.onMenuItemSelected(featureId, item);
         }
-    }
+    }*/
 
     /**
      * 页面构造
@@ -272,8 +309,10 @@ public class MainActivity extends ReactActivity {
      * */
     public void openDiscovery(){
         //进入蓝牙设备搜索界面
-        Intent intent = new Intent(this, actDiscovery.class);
-        this.startActivityForResult(intent, REQUEST_DISCOVERY); //等待返回搜索结果
+        /*Intent intent = new Intent(this, actDiscovery.class);
+        this.startActivityForResult(intent, REQUEST_DISCOVERY); //等待返回搜索结果*/
+        //立即启动扫描线程
+        new scanDeviceTask().execute("");
     }
 
     /**
@@ -316,6 +355,35 @@ public class MainActivity extends ReactActivity {
     /**
      * 蓝牙设备选择完后返回处理
      * */
+    public void selectDeviceToPair(String data,Callback success){
+        //this.mllDeviceCtrl.setVisibility(View.VISIBLE); //显示设备信息区
+        HashMap<String, String> s = gson.fromJson(data, HashMap.class);
+        this.mhtDeviceInfo.put("NAME", s.get("NAME"));
+        this.mhtDeviceInfo.put("MAC", s.get("MAC"));
+        this.mhtDeviceInfo.put("COD", s.get("COD"));
+        this.mhtDeviceInfo.put("RSSI", s.get("RSSI"));
+        this.mhtDeviceInfo.put("DEVICE_TYPE", s.get("DEVICE_TYPE"));
+        this.mhtDeviceInfo.put("BOND", s.get("BOND"));
+
+        //this.showDeviceInfo();//显示设备信息//
+
+        //如果设备未配对，显示配对操作
+        if (this.mhtDeviceInfo.get("BOND").equals(getString(R.string.actDiscovery_bond_nothing))){
+            //this.mbtnPair.setVisibility(View.VISIBLE); //显示配对按钮
+            //this.mbtnComm.setVisibility(View.GONE); //隐藏通信按钮
+            //提示要显示Service UUID先建立配对
+            //this.mtvServiceUUID.setText(getString(R.string.actMain_tv_hint_service_uuid_not_bond));
+            this.onClickBtnPair();
+        }else{
+            //已存在配对关系，建立与远程设备的连接
+            this.mBDevice = this.mBT.getRemoteDevice(this.mhtDeviceInfo.get("MAC"));
+            //this.showServiceUUIDs();//显示设备的Service UUID列表
+            //this.mbtnPair.setVisibility(View.GONE); //隐藏配对按钮
+            //this.mbtnComm.setVisibility(View.VISIBLE); //显示通信按钮
+            this.onClickBtnConn();
+
+        }
+    }
     public void onActivityResult(int requestCode, int resultCode, Intent data){
         if (requestCode == REQUEST_DISCOVERY){
             if (Activity.RESULT_OK == resultCode){
@@ -794,7 +862,9 @@ public class MainActivity extends ReactActivity {
         @Override
         public void onPreExecute()
         {
-            mtvReceive.setText(getString(R.string.msg_receive_data_wating));
+            Toast.makeText(MainActivity.this,
+                    getString(R.string.msg_receive_data_wating),
+                    Toast.LENGTH_SHORT).show();
             mbThreadStop = false;
         }
 
@@ -822,7 +892,10 @@ public class MainActivity extends ReactActivity {
         @Override
         public void onProgressUpdate(String... progress){
             if (null != progress[0]){
-                mtvReceive.append(progress[0]); //显示区中追加数据
+                Toast.makeText(MainActivity.this,
+                        progress[0],
+                        Toast.LENGTH_SHORT).show();
+                updateToRN.invoke("{\"type\":\"deviceReceive\",\"data\":\""+progress[0]+"\"}");
                 refreshRxdCount(); //刷新接收数据统计值
             }
         }
@@ -833,10 +906,14 @@ public class MainActivity extends ReactActivity {
         @Override
         public void onPostExecute(Integer result){
             if (CONNECT_LOST == result) //connection is lost
-                mtvReceive.append(getString(R.string.msg_msg_bt_connect_lost));
+                Toast.makeText(MainActivity.this,
+                        getString(R.string.msg_msg_bt_connect_lost),
+                        Toast.LENGTH_SHORT).show();
             else
-                mtvReceive.append(getString(R.string.msg_receive_data_stop));//Tip receive termination
-            mibtnSend.setEnabled(false); //Disable the Send button
+                Toast.makeText(MainActivity.this,
+                        getString(R.string.msg_receive_data_stop),
+                        Toast.LENGTH_SHORT).show();
+            //mibtnSend.setEnabled(false); //Disable the Send button
             refreshHoldTime(); //刷新数据统计状态条-运行时间
         }
     }
@@ -852,6 +929,303 @@ public class MainActivity extends ReactActivity {
         {
             long lTmp = this.mBSC.getConnectHoldTime();
             this.mtvHoleRun.setText(String.format(getString(R.string.templet_hold_time, lTmp)));
+        }
+    }
+    /*************************************************************/
+    /**
+     * Scan for Bluetooth devices. (broadcast listener)
+     */
+    private BroadcastReceiver _foundReceiver = new BroadcastReceiver(){
+        public void onReceive(Context context, Intent intent){
+			/* bluetooth device profiles*/
+            Hashtable<String, String> htDeviceInfo = new Hashtable<String, String>();
+
+            Log.d(getString(R.string.app_name), ">>Scan for Bluetooth devices");
+
+			/* get the search results */
+            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+			/* create found device profiles to htDeviceInfo*/
+            Bundle b = intent.getExtras();
+            htDeviceInfo.put("RSSI", String.valueOf(b.get(BluetoothDevice.EXTRA_RSSI)));
+            if (null == device.getName())
+                htDeviceInfo.put("NAME", "Null");
+            else
+                htDeviceInfo.put("NAME", device.getName());
+
+            htDeviceInfo.put("COD",  String.valueOf(b.get(BluetoothDevice.EXTRA_CLASS)));
+            if (device.getBondState() == BluetoothDevice.BOND_BONDED)
+                htDeviceInfo.put("BOND", getString(R.string.actDiscovery_bond_bonded));
+            else
+                htDeviceInfo.put("BOND", getString(R.string.actDiscovery_bond_nothing));
+            //TODO:内容为空
+            String sDeviceType = String.valueOf(b.get(EXTRA_DEVICE_TYPE));
+            if (!sDeviceType.equals("null"))
+                htDeviceInfo.put("DEVICE_TYPE", sDeviceType);
+            else
+                htDeviceInfo.put("DEVICE_TYPE", "-1"); //不存在设备号
+
+			/*adding scan to the device profiles*/
+            mhtFDS.put(device.getAddress(), htDeviceInfo);
+
+			/*Refresh show list*/
+            showDevices();
+        }
+    };
+    /**
+     * Bluetooth scanning is finished processing.(broadcast listener)
+     */
+    private BroadcastReceiver _finshedReceiver = new BroadcastReceiver(){
+        @Override
+        public void onReceive(Context context, Intent intent){
+            Log.d(getString(R.string.app_name), ">>Bluetooth scanning is finished");
+            _discoveryFinished = true; //set scan is finished
+            unregisterReceiver(_foundReceiver);
+            unregisterReceiver(_finshedReceiver);
+
+			/* 提示用户选择需要连接的蓝牙设备 */
+            if (null != mhtFDS && mhtFDS.size()>0){	//找到蓝牙设备
+                Toast.makeText(MainActivity.this,
+                        getString(R.string.actDiscovery_msg_select_device),
+                        Toast.LENGTH_SHORT).show();
+            }else{	//未找到蓝牙设备
+                Toast.makeText(MainActivity.this,
+                        getString(R.string.actDiscovery_msg_not_find_device),
+                        Toast.LENGTH_LONG).show();
+            }
+
+            String json = gson.toJson(mhtFDS);
+            updateToRN.invoke("{\"type\":\"deviceList\",\"data\":" +json+"}");
+            if (mBT.isDiscovering())
+                mBT.cancelDiscovery();
+
+        }
+    };
+
+    /**
+     * add top menu
+     * */
+    /*@Override
+    public boolean onCreateOptionsMenu(Menu menu){
+        super.onCreateOptionsMenu(menu);
+        MenuItem miScan = menu.add(0, MEMU_SCAN, 0, getString(R.string.actDiscovery_menu_scan));
+        MenuItem miClose = menu.add(0, MEMU_QUIT, 1, getString(R.string.menu_close));
+        miScan.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        miClose.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        return super.onCreateOptionsMenu(menu);
+    }*/
+
+    /**
+     * 菜单点击后的执行指令
+     * */
+    /*@Override
+    public boolean onMenuItemSelected(int featureId, MenuItem item) {
+        switch(item.getItemId()){
+            case MEMU_SCAN: //开始扫描
+                new actDiscovery.scanDeviceTask().execute("");
+                return true;
+            case MEMU_QUIT: //结束程序
+                this.setResult(Activity.RESULT_CANCELED, null);
+                this.finish();
+                return true;
+            default:
+                return super.onMenuItemSelected(featureId, item);
+        }
+    }*/
+
+
+
+    /**
+     * 开始扫描周围的蓝牙设备<br/>
+     *  备注:进入这步前必须保证蓝牙设备已经被启动
+     *  @return void
+     * */
+    private void startSearch(){
+        _discoveryFinished = false; //标记搜索未结束
+
+        //如果找到的设别对象为空，则创建这个对象。
+        if (null == mhtFDS)
+            this.mhtFDS = new Hashtable<String, Hashtable<String, String>>();
+        else
+            this.mhtFDS.clear();
+
+		/* Register Receiver*/
+        IntentFilter discoveryFilter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+        registerReceiver(_finshedReceiver, discoveryFilter);
+        IntentFilter foundFilter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+        registerReceiver(_foundReceiver, foundFilter);
+        mBT.startDiscovery();//start scan
+
+        this.showDevices(); //the first scan clear show list
+    }
+
+    /**
+     * 将设备类型ID，转换成设备解释字符串
+     * @return String
+     * */
+    private String toDeviceTypeString(String sDeviceTypeId){
+        Pattern pt = Pattern.compile("^[-\\+]?[\\d]+$");
+        if (pt.matcher(sDeviceTypeId).matches()){
+            switch(Integer.valueOf(sDeviceTypeId)){
+                case DEVICE_TYPE_BREDR:
+                    return getString(R.string.device_type_bredr);
+                case DEVICE_TYPE_BLE:
+                    return getString(R.string.device_type_ble);
+                case DEVICE_TYPE_DUMO:
+                    return getString(R.string.device_type_dumo);
+                default: //默认为蓝牙2.0
+                    return getString(R.string.device_type_bredr);
+            }
+        }
+        else
+            return sDeviceTypeId; //如果不是数字，则直接输出
+    }
+
+    /* Show devices list */
+    protected void showDevices(){
+        if (null == this.malListItem) //数组容器不存在时，创建
+            this.malListItem = new ArrayList<HashMap<String, Object>>();
+
+
+/*
+        //如果列表适配器未创建则创建之
+        if (null == this.msaListItemAdapter){
+            //生成适配器的Item和动态数组对应的元素
+            this.msaListItemAdapter = new SimpleAdapter(this,malListItem,//数据源
+                    R.layout.list_view_item_devices,//ListItem的XML实现
+                    //动态数组与ImageItem对应的子项
+                    new String[] {"NAME","MAC", "COD", "RSSI", "DEVICE_TYPE", "BOND"},
+                    //ImageItem的XML文件里面的一个ImageView,两个TextView ID
+                    new int[] {R.id.device_item_ble_name,
+                            R.id.device_item_ble_mac,
+                            R.id.device_item_ble_cod,
+                            R.id.device_item_ble_rssi,
+                            R.id.device_item_ble_device_type,
+                            R.id.device_item_ble_bond
+                    }
+            );
+            //添加并且显示
+            this.mlvList.setAdapter(this.msaListItemAdapter);
+        }
+
+        //构造适配器的数据
+        this.malListItem.clear();//清除历史项
+        Enumeration<String> e = this.mhtFDS.keys();*/
+        /*重新构造数据*/
+        /*while (e.hasMoreElements()){
+            HashMap<String, Object> map = new HashMap<String, Object>();
+            String sKey = e.nextElement();
+            map.put("MAC", sKey);
+            map.put("NAME", this.mhtFDS.get(sKey).get("NAME"));
+            map.put("RSSI", this.mhtFDS.get(sKey).get("RSSI"));
+            map.put("COD", this.mhtFDS.get(sKey).get("COD"));
+            map.put("BOND", this.mhtFDS.get(sKey).get("BOND"));
+            map.put("DEVICE_TYPE", toDeviceTypeString(this.mhtFDS.get(sKey).get("DEVICE_TYPE")));
+            this.malListItem.add(map);
+        }
+        this.msaListItemAdapter.notifyDataSetChanged(); //通知适配器内容发生变化自动跟新*/
+    }
+
+    //----------------
+    /*多线程处理:设备扫描监管线程*/
+public class scanDeviceTask extends AsyncTask<String, String, Integer>{
+    /**常量:蓝牙未开启*/
+    private static final int RET_BLUETOOTH_NOT_START = 0x0001;
+    /**常量:设备搜索完成*/
+    private static final int RET_SCAN_DEVICE_FINISHED = 0x0002;
+    /**等待蓝牙设备启动的最长时间(单位S)*/
+    private static final int miWATI_TIME = 10;
+    /**每次线程休眠时间(单位ms)*/
+    private static final int miSLEEP_TIME = 150;
+    /**进程等待提示框*/
+    private ProgressDialog mpd = null;
+
+    /**
+     * 线程启动初始化操作
+     */
+    @Override
+    public void onPreExecute(){
+	    	/*定义进程对话框*/
+        this.mpd = new ProgressDialog(MainActivity.this);
+        this.mpd.setMessage(getString(R.string.actDiscovery_msg_scaning_device));
+        this.mpd.setCancelable(true);//可被终止
+        this.mpd.setCanceledOnTouchOutside(true);//点击外部可终止
+        this.mpd.setOnCancelListener(new DialogInterface.OnCancelListener(){
+            @Override
+            public void onCancel(DialogInterface dialog){	//按下取消按钮后，终止搜索等待线程
+                _discoveryFinished = true;
+            }
+        });
+        this.mpd.show();
+
+        startSearch(); //执行蓝牙扫描
+    }
+
+    @Override
+    protected Integer doInBackground(String... params){
+        if (!mBT.isEnabled()) //蓝牙未启动
+            return RET_BLUETOOTH_NOT_START;
+
+        int iWait = miWATI_TIME * 1000;//倒减计数器
+        //等待miSLEEP_TIME秒，启动蓝牙设备后再开始扫描
+        while(iWait > 0){
+            if (_discoveryFinished)
+                return RET_SCAN_DEVICE_FINISHED; //蓝牙搜索结束
+            else
+                iWait -= miSLEEP_TIME; //剩余等待时间计时
+            SystemClock.sleep(miSLEEP_TIME);;
+        }
+        return RET_SCAN_DEVICE_FINISHED; //在规定时间内，蓝牙设备未启动
+    }
+    /**
+     * 线程内更新处理
+     */
+    @Override
+    public void onProgressUpdate(String... progress){
+    }
+    /**
+     * 阻塞任务执行完后的清理工作
+     */
+    @Override
+    public void onPostExecute(Integer result){
+        if (this.mpd.isShowing())
+            this.mpd.dismiss();//关闭等待对话框
+
+        if (mBT.isDiscovering())
+            mBT.cancelDiscovery();
+
+        if (RET_SCAN_DEVICE_FINISHED == result){//蓝牙设备搜索结束
+
+        }else if (RET_BLUETOOTH_NOT_START == result){	//提示蓝牙未启动
+            Toast.makeText(MainActivity.this, getString(R.string.actDiscovery_msg_bluetooth_not_start),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+}
+    /**
+     * Send button event handler
+     * */
+    public void Send(String sSend){
+        sSend.trim();
+        if (BluetoothSppClient.IO_MODE_HEX == this.mbtOutputMode){	//当使用HEX发送时，对发送内容做检查
+            if (!CHexConver.checkHexStr(sSend)){
+                Toast.makeText(this, //提示 本次发送失败
+                        getString(R.string.msg_not_hex_string),
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+
+        //this.mibtnSend.setEnabled(false);// 禁用发送按钮
+//    	sSend += "\r\n";
+        if (this.mBSC.Send(sSend) >= 0){
+            this.refreshTxdCount(); //刷新发送数据计值
+            //this.mibtnSend.setEnabled(true); //发送成功恢复发送按钮
+            //this.addAutoComplateVal(sSend, this.mactvInput); //追加自动完成值
+        }else{
+            Toast.makeText(this, //提示 连接丢失
+                    getString(R.string.msg_msg_bt_connect_lost),
+                    Toast.LENGTH_LONG).show();
+            //this.mactvInput.setEnabled(false); //禁用输入框
         }
     }
 }

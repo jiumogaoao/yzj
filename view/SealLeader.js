@@ -8,21 +8,22 @@ import {
     TextInput,
     NativeModules
 } from 'react-native';
-
+let rnToastAndroid = NativeModules.RNToastAndroid;
 class SealLeader extends React.Component {
     constructor(props) {
         super(props);
     };
 
     goDevice(){
-        NativeModules.RNToastAndroid.openDiscovery()
+        this.props.navigation.navigate('DeviceControl');
     }
 
     goCheckList(){
         this.props.navigation.navigate('CheckList')
     }
     goPhoto (){
-        this.props.navigation.navigate('Photo')
+        //this.props.navigation.navigate('Photo')
+        rnToastAndroid.send('yzj')
     }
     render() {
         return (

@@ -63,7 +63,7 @@ public class RNToastModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void openDiscovery(){
         MainActivity m = (MainActivity) getCurrentActivity();
-        m.openDiscovery();
+       m.openDiscovery();
     }
     @ReactMethod
     public void update(Callback toUpdate){
@@ -73,12 +73,17 @@ public class RNToastModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void send(String message){
         MainActivity m = (MainActivity) getCurrentActivity();
-        //m.send(message);
+        m.Send(message);
     }
     @ReactMethod
     public void init(){
         MainActivity m = (MainActivity) getCurrentActivity();
         //m.send(message)
         m.create();
+    }
+    @ReactMethod
+    public void selectDeviceToPair(String data,Callback success){
+        MainActivity m = (MainActivity) getCurrentActivity();
+        m.selectDeviceToPair(data,success);
     }
 }
