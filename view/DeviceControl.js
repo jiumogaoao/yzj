@@ -19,7 +19,6 @@ class DeviceControl extends React.Component {
             let paired = [];
             let unpaired = [];
             for (var i in data) {
-                    console.log(data[i])
                 let item={title:data[i].NAME,dsc:null,deg:true,icon:true,uuid:i,data:{...data[i],MAC:i}}
                 if(data[i].BOND=="未绑定"){
                     unpaired.push(item)
@@ -40,11 +39,16 @@ class DeviceControl extends React.Component {
             <View style={{height:parseInt(6*w),width:'100%'}}></View>
         )
     }
+
     gopaired(e){
-        rnToastAndroid.selectDeviceToPair(JSON.stringify(e.data),function(){
-            debugger;
+        let that = this;
+        rnToastAndroid.selectDeviceToPair(JSON.stringify(e.data),function(mac){
+            storageSet('machine', {
+                machineNum:mac,
+                connected:true
+            });
+            that.props.navigation.goBack();
         })
-        //this.props.navigation.navigate('Paired')
     }
     bindDevicel(){
 

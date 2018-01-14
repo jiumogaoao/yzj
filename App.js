@@ -20,6 +20,8 @@ import Check from './view/Check';
 import CheckList from './view/CheckList';
 import Checked from './view/Checked';
 import Photo from './view/Photo';
+import Photo2 from './view/Photo2';
+import mock from './mock';
 global.w = Dimensions.get('window').width/360;
 global.h = Dimensions.get('window').height/360;
 global.storageGet = async function(key){
@@ -32,6 +34,8 @@ global.storageSet = async function(key,obj){
     await AsyncStorage.setItem(key,obj)
     return storageGet(key)
 }
+global.rootURL = "http://218.17.55.193:8888/gss"
+mock.init();
 global.updateFn={}
 var navoption={
     header:null
@@ -57,7 +61,8 @@ const yzj = StackNavigator({
     Check: { screen: Check,navigationOptions:navoption},
     CheckList: { screen: CheckList,navigationOptions:navoption},
     Checked: { screen: Checked,navigationOptions:navoption},
-    Photo: { screen: Photo,navigationOptions:navoption}
+    Photo: { screen: Photo,navigationOptions:navoption},
+    Photo2: { screen: Photo2,navigationOptions:navoption}
 });
 
 AppRegistry.registerComponent('yzj', () => yzj);

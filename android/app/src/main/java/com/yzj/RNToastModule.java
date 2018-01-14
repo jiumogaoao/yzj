@@ -41,8 +41,9 @@ public class RNToastModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void show(String message, int duration) {
-        Toast.makeText(getReactApplicationContext(), message, duration).show();
+    public void show(String message) {
+        MainActivity m = (MainActivity) getCurrentActivity();
+        Toast.makeText(m, message, Toast.LENGTH_SHORT).show();
     }
 
     @ReactMethod

@@ -16,7 +16,7 @@ import HeadC from '../modules/HeadC'
 import CameraSVG from '../svg/CameraSVG'
 import RNFS from 'react-native-fs';
 
-class Photo extends React.Component {
+class Photo2 extends React.Component {
 
    constructor(props) {
         super(props);
@@ -31,10 +31,9 @@ class Photo extends React.Component {
         const options = {};
         let picData=await this.camera.capture({metadata: options})
         let b64=await RNFS.readFile(picData.mediaUri,'base64')
-        await storageSet('readyFile', {
-            file:'data:image/jpg;base64,'+b64,
-            fileType:'jpg'
-        });
+        let finishFile = await storageGet('finishFile')
+        finishFile.file='data:image/jpg;base64,'+b64
+        await storageSet('readyFile', finishFile);
         let device = await storageGet('device');
         let user = await storageGet('user');
         let leader = await storageGet('leader');
@@ -42,42 +41,26 @@ class Photo extends React.Component {
         let machine = await storageGet('machine');
         let rp;
         try {
-            rp = await fetch(rootURL+'/mechseal/task/simpleSealUseApplyTaskAction_applyTask.action', {
+            rp = await fetch(rootURL+'/mechseal/task/simpleSealUseApplyTaskAction_updateUseSealInfo.action', {
                 method: 'POST',
                 headers: device,
                 body: JSON.stringify({ //参数
                     file:'data:image/jpg;base64,'+b64,
                     fileType:'jpg',
-                    applyType:user.applyType,
                     bizInfo:{
-                        applyPeopleCode:user.applyPeopleCode,
-                        applyPeopleName:user.applyPeopleName,
-                        applyOrgNo:user.applyOrgNo,
-                        applyOrgName:user.applyOrgName,
-                        operatorOrgNo:leader.operatorOrgNo,
-                        sealTypeId:seal.sealTypeId,
-                        sealNo:seal.sealNo,
-                        applyTime:'',
-                        apprPeopleCode:leader.apprPeopleCode,
-                        apprPeopleName:leader.apprPeopleName,
-                        status:'001',
-                        memo:'',
-                        machineNum:machine.machineNum
+                        status:'006',
+                        autoId:machine.id,
+                        xPosition:finishFile.xPosition,
+                        yPosition:finishFile.yPosition,
+                        memo:''
                     }
                 })
             })
             if (rp.ok) {
-                let obj = await rp.json()
-                machine.rq=true;
-                machine.rp=false;
-                machine.id=obj.responseMessage.data.id;
-                await storageSet('machine',machine);
-                NativeModules.RNToastAndroid.show('审批已上传')
-                this.props.navigation.state.params.pairS()
+                this.props.navigation.state.params.finishS()
+                NativeModules.RNToastAndroid.show('用印信息已提交')
                 this.props.navigation.goBack()
             }
-
-
         } catch(error){
             console.log(error)
         }
@@ -86,7 +69,7 @@ class Photo extends React.Component {
    render() {
       return (
           <View style={styles.container}>
-            <HeadC back={true} title={'印章就绪'} navigation={this.props.navigation}/>
+            <HeadC back={true} title={'盖章完成'} navigation={this.props.navigation}/>
             <Camera
               ref={(cam) => {
                 this.camera = cam;
@@ -138,4 +121,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default Photo;
+export default Photo2;

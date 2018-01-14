@@ -12,7 +12,7 @@ import HostSVG from '../svg/HostSVG';
 import PasswordSVG from '../svg/PasswordSVG';
 import DeviceInfo from 'react-native-device-info'
 class Index extends React.Component {
-    initData(){
+    async initData(){
         storageSet('user', {
             applyType:1,
             applyPeopleCode:'002',
@@ -43,7 +43,11 @@ class Index extends React.Component {
             memo:''
         });
         storageSet('machine', {
-            machineNum:'001'
+            machineNum:'',
+            connected:false,
+            rq:false,
+            rp:false,
+            id:null
         });
         storageSet('device',{
             PLATFORM_TYPE:'Android',

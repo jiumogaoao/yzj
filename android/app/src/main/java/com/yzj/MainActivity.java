@@ -49,10 +49,12 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MainActivity extends ReactActivity {
     Callback updateToRN;
+    Callback PairSuccess;
     /**CONST: scan device menu id*/
     public static final byte MEMU_RESCAN = 0x01;
     /**CONST: exit application*/
@@ -297,6 +299,8 @@ public class MainActivity extends ReactActivity {
     protected void onDestroy() {
         super.onDestroy();
 
+        if (mBT.isDiscovering())
+            mBT.cancelDiscovery();
         this.mGP.closeConn();//关闭连接
 
         //检查如果进入前蓝牙是关闭的状态，则退出时关闭蓝牙
@@ -356,7 +360,7 @@ public class MainActivity extends ReactActivity {
      * 蓝牙设备选择完后返回处理
      * */
     public void selectDeviceToPair(String data,Callback success){
-        //this.mllDeviceCtrl.setVisibility(View.VISIBLE); //显示设备信息区
+        PairSuccess = success;
         HashMap<String, String> s = gson.fromJson(data, HashMap.class);
         this.mhtDeviceInfo.put("NAME", s.get("NAME"));
         this.mhtDeviceInfo.put("MAC", s.get("MAC"));
@@ -364,74 +368,16 @@ public class MainActivity extends ReactActivity {
         this.mhtDeviceInfo.put("RSSI", s.get("RSSI"));
         this.mhtDeviceInfo.put("DEVICE_TYPE", s.get("DEVICE_TYPE"));
         this.mhtDeviceInfo.put("BOND", s.get("BOND"));
-
-        //this.showDeviceInfo();//显示设备信息//
-
         //如果设备未配对，显示配对操作
         if (this.mhtDeviceInfo.get("BOND").equals(getString(R.string.actDiscovery_bond_nothing))){
-            //this.mbtnPair.setVisibility(View.VISIBLE); //显示配对按钮
-            //this.mbtnComm.setVisibility(View.GONE); //隐藏通信按钮
-            //提示要显示Service UUID先建立配对
-            //this.mtvServiceUUID.setText(getString(R.string.actMain_tv_hint_service_uuid_not_bond));
             this.onClickBtnPair();
         }else{
             //已存在配对关系，建立与远程设备的连接
             this.mBDevice = this.mBT.getRemoteDevice(this.mhtDeviceInfo.get("MAC"));
-            //this.showServiceUUIDs();//显示设备的Service UUID列表
-            //this.mbtnPair.setVisibility(View.GONE); //隐藏配对按钮
-            //this.mbtnComm.setVisibility(View.VISIBLE); //显示通信按钮
             this.onClickBtnConn();
-
         }
     }
-    public void onActivityResult(int requestCode, int resultCode, Intent data){
-        if (requestCode == REQUEST_DISCOVERY){
-            if (Activity.RESULT_OK == resultCode){
-                //this.mllDeviceCtrl.setVisibility(View.VISIBLE); //显示设备信息区
 
-                this.mhtDeviceInfo.put("NAME", data.getStringExtra("NAME"));
-                this.mhtDeviceInfo.put("MAC", data.getStringExtra("MAC"));
-                this.mhtDeviceInfo.put("COD", data.getStringExtra("COD"));
-                this.mhtDeviceInfo.put("RSSI", data.getStringExtra("RSSI"));
-                this.mhtDeviceInfo.put("DEVICE_TYPE", data.getStringExtra("DEVICE_TYPE"));
-                this.mhtDeviceInfo.put("BOND", data.getStringExtra("BOND"));
-
-                //this.showDeviceInfo();//显示设备信息//
-
-                //如果设备未配对，显示配对操作
-                if (this.mhtDeviceInfo.get("BOND").equals(getString(R.string.actDiscovery_bond_nothing))){
-                    //this.mbtnPair.setVisibility(View.VISIBLE); //显示配对按钮
-                    //this.mbtnComm.setVisibility(View.GONE); //隐藏通信按钮
-                    //提示要显示Service UUID先建立配对
-                    //this.mtvServiceUUID.setText(getString(R.string.actMain_tv_hint_service_uuid_not_bond));
-                    this.onClickBtnPair();
-                }else{
-                    //已存在配对关系，建立与远程设备的连接
-                    this.mBDevice = this.mBT.getRemoteDevice(this.mhtDeviceInfo.get("MAC"));
-                    //this.showServiceUUIDs();//显示设备的Service UUID列表
-                    //this.mbtnPair.setVisibility(View.GONE); //隐藏配对按钮
-                    //this.mbtnComm.setVisibility(View.VISIBLE); //显示通信按钮
-                    this.onClickBtnConn();
-
-                }
-            }else if (Activity.RESULT_CANCELED == resultCode){
-                //未操作，结束程序
-                //this.finish();
-            }
-        }
-        else if (REQUEST_BYTE_STREAM == requestCode || REQUEST_CMD_LINE == requestCode ||
-                REQUEST_KEY_BOARD == requestCode)
-        {	//从通信模式返回的处理
-            if (null == this.mGP.mBSC || !this.mGP.mBSC.isConnect()){	//通信连接丢失，重新连接
-                this.mllChooseMode.setVisibility(View.GONE); //隐藏 通信模式选择
-                this.mbtnComm.setVisibility(View.VISIBLE); //显示 建立通信按钮
-                this.mGP.closeConn();//释放连接对象
-                Toast.makeText(this, //提示连接丢失
-                        getString(R.string.msg_msg_bt_connect_lost),
-                        Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
 
     /**
      * 配对按钮的单击事件
@@ -439,7 +385,6 @@ public class MainActivity extends ReactActivity {
      * */
     public void onClickBtnPair(){
         new PairTask().execute(this.mhtDeviceInfo.get("MAC"));
-        //this.mbtnPair.setEnabled(false); //冻结配对按钮
     }
 
     /**
@@ -457,8 +402,6 @@ public class MainActivity extends ReactActivity {
      * */
     public void onClickBtnSerialStreamMode(){
         //进入串行流模式
-        //Intent intent = new Intent(this, actByteStream.class);
-        //this.startActivityForResult(intent, REQUEST_BYTE_STREAM); //等待返回搜索结果
         this.toConn();
     }
 
@@ -616,11 +559,7 @@ public class MainActivity extends ReactActivity {
                 Toast.makeText(MainActivity.this,
                         getString(R.string.actMain_msg_bluetooth_Bond_Success),
                         Toast.LENGTH_SHORT).show();
-                //mbtnPair.setVisibility(View.GONE); //隐藏配对按钮
-                //mbtnComm.setVisibility(View.VISIBLE); //显示通信按钮
                 mhtDeviceInfo.put("BOND", getString(R.string.actDiscovery_bond_bonded));//显示已绑定
-                //showDeviceInfo();//刷新配置信息
-                //showServiceUUIDs();//显示远程设备提供的服务
                 MainActivity.this.onClickBtnConn();
             }else{	//在指定时间内未完成配对
                Toast.makeText(MainActivity.this,
@@ -734,12 +673,11 @@ public class MainActivity extends ReactActivity {
             this.mpd.dismiss();
 
             if (CONN_SUCCESS == result){	//通信连接建立成功
-                //mbtnComm.setVisibility(View.GONE); //隐藏 建立通信按钮
-                //mllChooseMode.setVisibility(View.VISIBLE); //显示通信模式控制面板
                 Toast.makeText(MainActivity.this,
                         getString(R.string.actMain_msg_device_connect_succes),
                         Toast.LENGTH_SHORT).show();
                 MainActivity.this.onClickBtnSerialStreamMode();
+                PairSuccess.invoke(MainActivity.this.mhtDeviceInfo.get("MAC"));
             }else{	//通信连接建立失败
                 Toast.makeText(MainActivity.this,
                         getString(R.string.actMain_msg_device_connect_fail),
@@ -895,11 +833,19 @@ public class MainActivity extends ReactActivity {
                 Toast.makeText(MainActivity.this,
                         progress[0],
                         Toast.LENGTH_SHORT).show();
-                updateToRN.invoke("{\"type\":\"deviceReceive\",\"data\":\""+progress[0]+"\"}");
+                updateToRN.invoke("{\"type\":\"deviceReceive\",\"data\":\""+replaceBlank(progress[0])+"\"}");
                 refreshRxdCount(); //刷新接收数据统计值
             }
         }
-
+        public  String replaceBlank(String src) {
+            String dest = "";
+            if (src != null) {
+                Pattern pattern = Pattern.compile("\t|\r|\n|\\s*");
+                Matcher matcher = pattern.matcher(src);
+                dest = matcher.replaceAll("");
+            }
+            return dest;
+        }
         /**
          * 阻塞任务执行完后的清理工作
          */
@@ -1205,8 +1151,12 @@ public class scanDeviceTask extends AsyncTask<String, String, Integer>{
      * Send button event handler
      * */
     public void Send(String sSend){
+        Log.d("send", sSend);
         sSend.trim();
-        if (BluetoothSppClient.IO_MODE_HEX == this.mbtOutputMode){	//当使用HEX发送时，对发送内容做检查
+        Log.d("send", sSend);
+        if (BluetoothSppClient.IO_MODE_HEX == this.mbtOutputMode){
+            Log.d("send", "IO_MODE_HEX");
+            //当使用HEX发送时，对发送内容做检查
             if (!CHexConver.checkHexStr(sSend)){
                 Toast.makeText(this, //提示 本次发送失败
                         getString(R.string.msg_not_hex_string),
@@ -1217,7 +1167,9 @@ public class scanDeviceTask extends AsyncTask<String, String, Integer>{
 
         //this.mibtnSend.setEnabled(false);// 禁用发送按钮
 //    	sSend += "\r\n";
+        Log.d("send", "toSend");
         if (this.mBSC.Send(sSend) >= 0){
+            Log.d("send", "toSend>1");
             this.refreshTxdCount(); //刷新发送数据计值
             //this.mibtnSend.setEnabled(true); //发送成功恢复发送按钮
             //this.addAutoComplateVal(sSend, this.mactvInput); //追加自动完成值
