@@ -15,6 +15,7 @@ import Camera from 'react-native-camera';
 import HeadC from '../modules/HeadC'
 import CameraSVG from '../svg/CameraSVG'
 import RNFS from 'react-native-fs';
+import ImageResizer from 'react-native-image-resizer';
 
 class Photo2 extends React.Component {
 
@@ -30,10 +31,13 @@ class Photo2 extends React.Component {
     async takePicture() {
         const options = {};
         let picData=await this.camera.capture({metadata: options})
-        let b64=await RNFS.readFile(picData.mediaUri,'base64')
+        let picResize=await ImageResizer.createResizedImage(picData.mediaUri, 720, 720, 'JPEG', 80, 0)
+        let b64=await RNFS.readFile(picResize.uri,'base64')
         let finishFile = await storageGet('finishFile')
         finishFile.file='data:image/jpg;base64,'+b64
         await storageSet('readyFile', finishFile);
+        RNFS.unlink(picData.path)
+        RNFS.unlink(picResize.uri)
         let device = await storageGet('device');
         let user = await storageGet('user');
         let leader = await storageGet('leader');

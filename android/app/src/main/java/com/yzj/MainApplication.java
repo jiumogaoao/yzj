@@ -4,6 +4,7 @@ import android.app.Application;
 
 import com.bluetooth.BluetoothSppClient;
 import com.facebook.react.ReactApplication;
+import fr.bamlab.rnimageresizer.ImageResizerPackage;
 import com.rnfs.RNFSPackage;
 import com.learnium.RNDeviceInfo.RNDeviceInfo;
 import com.lwansbrough.RCTCamera.RCTCameraPackage;
@@ -32,6 +33,7 @@ public class MainApplication extends Application implements ReactApplication {
     protected List<ReactPackage> getPackages() {
       return Arrays.<ReactPackage>asList(
           new MainReactPackage(),
+            new ImageResizerPackage(),
             new RNFSPackage(),
             new RNDeviceInfo(),
             new RCTCameraPackage(),

@@ -14,7 +14,7 @@ import DeviceInfo from 'react-native-device-info'
 class Index extends React.Component {
     async initData(){
         storageSet('user', {
-            applyType:1,
+            applyType:0,
             applyPeopleCode:'002',
             applyPeopleName:'某人',
             applyOrgNo:'002',

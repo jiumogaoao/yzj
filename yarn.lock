@@ -3415,6 +3415,10 @@ react-native-fs@^2.9.6:
     base-64 "^0.1.0"
     utf8 "^2.1.1"
 
+react-native-image-resizer@^1.0.0:
+  version "1.0.0"
+  resolved "http://registry.npm.taobao.org/react-native-image-resizer/download/react-native-image-resizer-1.0.0.tgz#d47e14943c37938e287fbd639e4db7ceb7fd8917"
+
 react-native-swiper@^1.5.13:
   version "1.5.13"
   resolved "http://registry.npm.taobao.org/react-native-swiper/download/react-native-swiper-1.5.13.tgz#fa695cd4ab77b9a9df2d2bfee38ea7274dd07a2e"

@@ -17,13 +17,49 @@ class SealLeader extends React.Component {
     goDevice(){
         this.props.navigation.navigate('DeviceControl');
     }
-
+    async getCheckState() {
+        rnToastAndroid.send("YZJ")
+    }
     goCheckList(){
         this.props.navigation.navigate('CheckList')
     }
-    goPhoto (){
-        //this.props.navigation.navigate('Photo')
-        rnToastAndroid.send('yzj')
+    async goPhoto (){
+        let machine = await storageGet('machine')
+        device = await storageGet('device');
+        let that=this;
+        if(machine.connected){
+            this.props.navigation.navigate('Photo',{
+                pairS:function(){
+                    that.getCheckState()
+                }
+            })
+        }else{
+            rnToastAndroid.show("请先绑定设备");
+        }
+
+    }
+    async clean(){
+        let machine = await storageGet('machine')
+        machine.rp=false;
+        machine.rq=false;
+        await storageSet('machine',machine)
+    }
+    async goFinish (){
+        let machine = await storageGet('machine')
+        if(!machine.connected){
+            rnToastAndroid.show("请先绑定设备");
+        }
+        else if(!machine.rq){
+            rnToastAndroid.show("请先解锁设备");
+        }else{
+            let that=this;
+            this.props.navigation.navigate('Photo2',{
+                finishS:function(){
+                    that.clean();
+                    rnToastAndroid.send('YZJ')
+                }
+            })
+        }
     }
     render() {
         return (
