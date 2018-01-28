@@ -35,13 +35,14 @@ global.storageSet = async function(key,obj){
     return storageGet(key)
 }
 global.rootURL = "http://218.17.55.193:8888/gss"
-mock.init();
+//mock.init();
 global.updateFn={}
 var navoption={
     header:null
 }
 function updateCallback(data){
     NativeModules.RNToastAndroid.update(updateCallback)
+    console.log(data)
     data=JSON.parse(data)
     if(updateFn[data.type]){
         updateFn[data.type](data.data)

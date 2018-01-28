@@ -829,13 +829,30 @@ public class MainActivity extends ReactActivity {
          */
         @Override
         public void onProgressUpdate(String... progress){
+//            获取数据的长度和数据的类型（需要的话把注释去掉）
+//            char messageLen=' ';
+//            char messageTyp=' ';
             if (null != progress[0]){
+//                messageLen=progress[0].charAt(0);
+//                messageTyp=progress[0].charAt(1);
                 Toast.makeText(MainActivity.this,
-                        progress[0],
+                        getMainData(progress[0]),
                         Toast.LENGTH_SHORT).show();
-                updateToRN.invoke("{\"type\":\"deviceReceive\",\"data\":\""+replaceBlank(progress[0])+"\"}");
+                Log.d("yzj", "update: "+getMainData(progress[0]));
+                updateToRN.invoke("{\"type\":\"deviceReceive\",\"data\":\""+getMainData(progress[0])+"\"}");
                 refreshRxdCount(); //刷新接收数据统计值
             }
+        }
+
+//       截取蓝牙数据的正文
+        public String getMainData(String str){
+            String result="";
+            if(str!=null){
+                result=str.substring(2);
+                result=result.replaceAll("\t","");
+                result=result.replaceAll("[^0-9a-zA-Z\\u4e00-\\u9fa5.，,。？“”:\\s*]+","?");
+            }
+            return result;
         }
         public  String replaceBlank(String src) {
             String dest = "";

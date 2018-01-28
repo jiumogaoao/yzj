@@ -23,10 +23,6 @@ class Photo extends React.Component {
         this.camera = null;
     }
 
-    componentDidMount() {
-
-    }
-
     async takePicture() {
         const options = {};
         let picData=await this.camera.capture({metadata: options})

@@ -18,6 +18,7 @@ class SealLeader extends React.Component {
         this.props.navigation.navigate('DeviceControl');
     }
     async getCheckState() {
+
         rnToastAndroid.send("YZJ")
     }
     goCheckList(){
@@ -94,7 +95,7 @@ class SealLeader extends React.Component {
                 </View>
                 <View style={{flex:1,flexDirection:'row'}}>
                     <View style={{flex:1,backgroundColor:'#6ac3fd',justifyContent:'center',alignItems:'center'}}>
-                        <TouchableOpacity>
+                        <TouchableOpacity onPress={this.goFinish.bind(this)}>
                         <View style={{width:parseInt(78*w),height:parseInt(78*w),borderRadius:parseInt(39*w),backgroundColor:'#fff',borderWidth:parseInt(3*w),borderColor:'rgba(255,255,255,0.5)',alignItems:'center',justifyContent:'center'}}>
                             <Text>电子印章</Text>
                         </View>
